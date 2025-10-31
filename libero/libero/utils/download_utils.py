@@ -175,6 +175,8 @@ def libero_dataset_download(datasets="all", download_dir=None, check_overwrite=T
         "libero_goal",
         "libero_spatial",
         "libero_100",
+        "libero_90",
+        "libero_10",
     ]
 
     datasets_to_download = [
@@ -182,11 +184,13 @@ def libero_dataset_download(datasets="all", download_dir=None, check_overwrite=T
         "libero_goal",
         "libero_spatial",
         "libero_100",
+        "libero_90",
+        "libero_10",
     ] if datasets == "all" else [datasets]
 
     for dataset_name in datasets_to_download:
         print(f"Downloading {dataset_name}")
-        
+
         if use_huggingface:
             download_from_huggingface(
                 dataset_name=dataset_name,
@@ -194,6 +198,10 @@ def libero_dataset_download(datasets="all", download_dir=None, check_overwrite=T
                 check_overwrite=check_overwrite
             )
         else:
+            # Check if dataset has original download link
+            if dataset_name not in DATASET_LINKS:
+                print(f"Warning: {dataset_name} is only available from Hugging Face. Skipping...")
+                continue
             print("Using original download links (these may expire soon)")
             download_url(
                 DATASET_LINKS[dataset_name],
@@ -214,30 +222,32 @@ def check_libero_dataset(download_dir=None):
     if download_dir is None:
         download_dir = get_libero_path("datasets")
     check_result = True
-    for dataset_name in [
-        "libero_object",
-        "libero_goal",
-        "libero_spatial",
-        "libero_10",
-        "libero_90",
-    ]:
+
+    # Define expected file counts for each dataset
+    expected_counts = {
+        "libero_object": 10,
+        "libero_goal": 10,
+        "libero_spatial": 10,
+        "libero_10": 10,
+        "libero_90": 90,
+    }
+
+    for dataset_name in expected_counts.keys():
         info_str = ""
         dataset_status = False
         dataset_dir = os.path.join(download_dir, dataset_name)
         if os.path.exists(dataset_dir):
             count = 0
-            for path in Path(dataset_dir).glob("*.hdf5"):
+            for _ in Path(dataset_dir).glob("*.hdf5"):
                 count += 1
-            if (count == 10 and dataset_name != "libero_90") or (
-                count == 90 and dataset_name == "libero_90"
-            ):
+            if count == expected_counts[dataset_name]:
                 dataset_status = True
                 info_str = colored(
                     f"[X] Dataset {dataset_name} is complete", "green", attrs=["bold"]
                 )
             else:
-                colored(
-                    f"[?] Dataset {dataset_name} is not downloaded completely",
+                info_str = colored(
+                    f"[?] Dataset {dataset_name} is not downloaded completely (found {count} files, expected {expected_counts[dataset_name]})",
                     "yellow",
                     attrs=["bold"],
                 )
